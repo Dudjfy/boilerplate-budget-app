@@ -46,7 +46,6 @@ def create_spend_chart(categories):
         item_withdraws.append(sum([abs(ledger_item["amount"]) for ledger_item in cat_item.ledger if ledger_item["amount"] < 0]))
 
     item_percentages = [int(math.floor(((item / sum(item_withdraws)) * 100))) for item in item_withdraws]
-    print(sum(item_withdraws), item_percentages)
     for percentage in range(100, -10, -10):
         percentages_string = ''.join([('o' + ' ' * 2 if item >= percentage else ' ' * 3) for item in item_percentages])
         spend_chart.append(f"{percentage:>3}| " + percentages_string)
