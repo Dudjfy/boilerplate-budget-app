@@ -9,8 +9,6 @@ class Category:
     def __str__(self):
         budget = [self.name.center(30, '*')]
         for item in self.ledger:
-            # budget.append(item["description"].ljust(23) + f"{item['amount']: 5.2f}")
-            # budget.append(f'{item["description"]:<23.23}{item["amount"]:>7.2f}')
             budget.append('{:<23.23}{:>7.2f}'.format(item["description"], item["amount"]))
         budget.append(f'Total: {self.get_balance()}')
         return '\n'.join(budget)
@@ -35,35 +33,85 @@ class Category:
         return False
 
     def check_funds(self, check_amount):
-        return False if check_amount > self.get_balance() else True
+        return check_amount <= self.get_balance()
+
+
+class SpendChart:
+    filled_cell = 'o  '
+    empty_cell = '   '
+    cell_len = len(empty_cell)
+
+    def __init__(self, categories):
+        self.lines = []
+
+        self.categories = categories
+        self.cat_spaced_len = len(categories) * 3
+        self.chart_width = 5 + self.cat_spaced_len
+
+        self.cat_withdraws = []
+
+        self.cat_percentages = []
+
+    def add_top_text(self):
+        self.lines.append("Percentage spent by category")
+
+    def create_cat_withdraws(self):
+        for cat in self.categories:
+            cat_sum = 0
+            for ledger_item in cat.ledger:
+                if ledger_item["amount"] < 0:
+                    cat_sum += abs(ledger_item["amount"])
+            self.cat_withdraws.append(cat_sum)
+
+    def create_cat_percentages(self):
+        cat_withdraws_sum = sum(self.cat_withdraws)
+        for cat_sum in self.cat_withdraws:
+            raw_percentage = cat_sum / cat_withdraws_sum
+            rounded_percentage = math.floor(raw_percentage * 100)
+            self.cat_percentages.append(rounded_percentage)
+
+    def add_percentage_rows_with_cat_bars(self):
+        self.create_cat_withdraws()
+        self.create_cat_percentages()
+
+        chart_max = 100
+        chart_min = -10
+        chart_step = -10
+        for cur_percentage in range(chart_max, chart_min, chart_step):
+            percentages_str = ''
+            for cat_percentage in self.cat_percentages:
+                percentages_str += self.filled_cell if cat_percentage >= cur_percentage else self.empty_cell
+
+            self.lines.append("{:>3}| {}".format(cur_percentage, percentages_str))
+
+    def add_bottom_line(self):
+        bottom_line_len = 1 + self.cat_spaced_len
+        bottom_line = '-' * bottom_line_len
+        bottom_line_row = bottom_line.rjust(self.chart_width)
+        self.lines.append(bottom_line_row)
+
+    def add_cat_columns(self):
+        cat_names = [cat.name for cat in self.categories]
+        cat_max_len = len(max(cat_names, key=len))
+        for letter_i in range(cat_max_len):
+            cat_str = ''
+            for name in cat_names:
+                letter_cell = self.empty_cell
+                if letter_i < len(name):
+                    letter = name[letter_i]
+                    letter_cell = letter.ljust(self.cell_len)
+                cat_str += letter_cell
+
+            self.lines.append(cat_str.rjust(self.chart_width))
 
 
 def create_spend_chart(categories):
-    spend_chart = ["Percentage spent by category"]
 
-    item_withdraws = []
-    for cat_item in categories:
-        item_withdraws.append(sum([abs(ledger_item["amount"]) for ledger_item in cat_item.ledger if ledger_item["amount"] < 0]))
+    spend_chart = SpendChart(categories)
 
-    item_percentages = [int(math.floor(((item / sum(item_withdraws)) * 100))) for item in item_withdraws]
-    for percentage in range(100, -10, -10):
-        percentages_string = ''.join([('o' + ' ' * 2 if item >= percentage else ' ' * 3) for item in item_percentages])
-        spend_chart.append(f"{percentage:>3}| " + percentages_string)
+    spend_chart.add_top_text()
+    spend_chart.add_percentage_rows_with_cat_bars()
+    spend_chart.add_bottom_line()
+    spend_chart.add_cat_columns()
 
-        # spend_chart.append(f"{percentage:>3}| ")
-        # for item in item_percentages:
-        #     if item <= percentage:
-        #         spend_chart[i] += 'o  '
-        #     else:
-        #         spend_chart[i] += '   '
-
-    spend_chart.append(' ' * 4 + '-' * ((len(categories) * 3) + 1))
-
-    cat_names = [item.name for item in categories]
-    cat_max_len = len(max(cat_names, key=len))
-    for i in range(cat_max_len):
-        cat_string = ''.join([(name[i] + ' ' * 2) if i < len(name) else ' ' * 3 for name in cat_names])
-        spend_chart.append(' ' * 5 + cat_string)
-
-    # return spend_chart
-    return '\n'.join(spend_chart)
+    return '\n'.join(spend_chart.lines)
